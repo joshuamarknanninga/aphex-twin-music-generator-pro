@@ -6,34 +6,45 @@ const User = require('../models/User');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
-// JWT secret key (store in environment variable in production)
-const JWT_SECRET = 'your_jwt_secret';
-
-// Sign Up
+// User Signup
 router.post('/signup', async (req, res) => {
   try {
-    const user = new User(req.body);
+    const { email, password } = req.body;
+
+    // Check if user already exists
+    let user = await User.findOne({ email });
+    if (user) return res.status(400).json({ error: 'User already exists' });
+
+    // Create new user
+    user = new User({ email, password });
     await user.save();
-    res.status(201).json({ message: 'User created' });
+
+    res.status(201).json({ message: 'User created successfully' });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Login
+// User Login
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    // Find user
     const user = await User.findOne({ email });
-    if (!user) throw new Error('Invalid credentials');
+    if (!user) return res.status(400).json({ error: 'Invalid credentials' });
 
+    // Check password
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) throw new Error('Invalid credentials');
+    if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
 
-    const token = jwt.sign({ userId: user._id }, JWT_SECRET);
-    res.json({ token });
+    // Create JWT
+    const payload = { userId: user._id };
+    const token = jwt.sign(payload, 'your_jwt_secret', { expiresIn: '1h' });
+
+    res.json({ token, user: { id: user._id, email: user.email } });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 
