@@ -1,26 +1,63 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 const VirtualKeyboard = ({ playNote }) => {
-  const octaves = [3, 4, 5]; // 3 octaves
-  const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const [activeKeys, setActiveKeys] = useState([]);
+  const octaves = [4]; // Limit to one octave for home keys
+  const notes = ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C', 'D'];
+  const keyBindings = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'];
+
+  const noteToKey = {};
+  const keyToNote = {};
+  notes.forEach((note, index) => {
+    const noteName = note + octaves[0];
+    const key = keyBindings[index];
+    noteToKey[noteName] = key;
+    keyToNote[key] = noteName;
+  });
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      const key = event.key.toLowerCase();
+      if (key in keyToNote && !activeKeys.includes(key)) {
+        setActiveKeys((prevKeys) => [...prevKeys, key]);
+        playNoteFromKeyboard(keyToNote[key]);
+      }
+    };
+
+    const handleKeyUp = (event) => {
+      const key = event.key.toLowerCase();
+      setActiveKeys((prevKeys) => prevKeys.filter((k) => k !== key));
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [activeKeys]);
+
+  const playNoteFromKeyboard = (note) => {
+    playNote(note);
+  };
 
   const renderKeys = () => {
-    return octaves.map((octave) =>
-      notes.map((note, index) => {
-        const isBlackKey = note.includes('#');
-        const noteName = `${note}${octave}`;
-        return (
-          <div
-            key={noteName}
-            onClick={() => playNote(noteName)}
-            className={`${
-              isBlackKey ? 'black-key' : 'white-key'
-            } key`}
-            title={noteName}
-          ></div>
-        );
-      })
-    );
+    return notes.map((note, index) => {
+      const noteName = note + octaves[0];
+      const key = keyBindings[index];
+      const isActive = activeKeys.includes(key);
+      return (
+        <div
+          key={noteName}
+          className={`white-key key ${isActive ? 'active' : ''}`}
+          onMouseDown={() => playNote(noteName)}
+          title={`${noteName} (${key.toUpperCase()})`}
+        >
+          <span className="key-label">{key.toUpperCase()}</span>
+        </div>
+      );
+    });
   };
 
   return (
@@ -31,3 +68,4 @@ const VirtualKeyboard = ({ playNote }) => {
 };
 
 export default VirtualKeyboard;
+

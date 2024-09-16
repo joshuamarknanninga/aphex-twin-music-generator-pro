@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import * as Tone from 'tone';
 import io from 'socket.io-client';
 import Controls from './Controls';
-import ModularSynth from './ModularSynth';
-import SampleLoader from './SampleLoader';
-import TapeEmulation from './TapeEmulation';
-import GlitchEffects from './GlitchEffects';
-import StepSequencer from './StepSequencer';
-import VocoderModule from './VocoderModule';
 import VirtualKeyboard from './VirtualKeyboard';
+import VocoderModule from './VocoderModule';
+import StepSequencer from './StepSequencer';
+import ModularSynth from './ModularSynth';
+import GlitchEffects from './GlitchEffects';
+import TapeEmulation from './TapeEmulation';
+import SampleLoader from './SampleLoader';
+import { defaultKeyBindings, KeyBindingsContext } from '../utils/KeyBindings';
 
 const socket = io('http://localhost:5000');
 
@@ -65,7 +66,53 @@ const GlitchMusic = () => {
       // Optionally, provide visual feedback on the virtual keyboard
     }
   };
-  
+
+  const [keyBindings, setKeyBindings] = useState(defaultKeyBindings);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      const key = event.key.toLowerCase();
+
+      if (keyBindings.notes[key]) {
+        playNoteKeyboard(keyBindings.notes[key]);
+      } else if (keyBindings.controls[key]) {
+        keyBindings.controls[key](); // Execute the control function
+      } else if (keyBindings.sequencer[key]) {
+        keyBindings.sequencer[key]();
+      }
+      // Add additional key handling as needed
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [synth, keyBindings]);
+
+  const playNoteKeyboard = (note) => {
+    if (synth) {
+      synth.triggerAttackRelease(note, '8n');
+      socket.emit('noteOn', { note });
+      // Optionally, provide visual feedback on the virtual keyboard
+    }
+  };
+
+  // Example control functions
+  const increaseFilterFrequency = () => {
+    setSynthSettings((prev) => ({
+      ...prev,
+      filterFrequency: Math.min(prev.filterFrequency + 50, 20000),
+    }));
+  };
+
+  const decreaseFilterFrequency = () => {
+    setSynthSettings((prev) => ({
+      ...prev,
+      filterFrequency: Math.max(prev.filterFrequency - 50, 20),
+    }));
+  };
+
   useEffect(() => {
     // Initialize tape effect
     const tape = new Tone.Warp({
@@ -164,16 +211,32 @@ const newSynth = new Tone.PolySynth(Tone.Synth, {
     setPlayer(newPlayer);
   };
 
+  // Update keyBindings with functions
+  useEffect(() => {
+    setKeyBindings((prevBindings) => ({
+      ...prevBindings,
+      controls: {
+        ...prevBindings.controls,
+        'arrowup': increaseFilterFrequency,
+        'arrowdown': decreaseFilterFrequency,
+        // Add more control bindings
+      },
+    }));
+  }, []);
+
   return (
-    <div className="p-4">
-      <h1 className="text-4xl mb-4">Aphex Twin Music Generator</h1>
-      <Controls playNote={playNote} updateSynthSettings={updateSynthSettings} />
-      <ModularSynth />
-      <GlitchEffects glitchEffect={glitchEffect} />
-      <TapeEmulation tapeEffect={tapeEffect} />
-      <SampleLoader loadSample={loadSample} />
-    </div>
-  );
-};
+    <KeyBindingsContext.Provider value={{ keyBindings, setKeyBindings }}>
+      <div className="p-4">
+        <h1 className="text-4xl mb-4">Aphex Twin Music Generator</h1>
+        <Controls playNote={playNote} updateSynthSettings={updateSynthSettings} />
+        <VirtualKeyboard playNote={playNote} />
+        <VocoderModule handleAudioInput={handleAudioInput} vocoder={vocoder} />
+        <StepSequencer triggerNote={triggerNote} />
+        <ModularSynth />
+        <GlitchEffects glitchEffect={glitchEffect} />
+        <TapeEmulation tapeEffect={tapeEffect} />
+        <SampleLoader loadSample={loadSample} />
+      </div>
+    </KeyBindingsContext.Provider>
 
 export default GlitchMusic;
