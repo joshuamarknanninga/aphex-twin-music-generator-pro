@@ -7,6 +7,8 @@ import SampleLoader from './SampleLoader';
 import TapeEmulation from './TapeEmulation';
 import GlitchEffects from './GlitchEffects';
 import StepSequencer from './StepSequencer';
+import VocoderModule from './VocoderModule';
+import VirtualKeyboard from './VirtualKeyboard';
 
 const socket = io('http://localhost:5000');
 
@@ -74,6 +76,17 @@ const GlitchMusic = () => {
     </div>
 
 );
+
+// Initialize synthesizer
+const filter = new Tone.Filter(synthSettings.filterFrequency, 'lowpass', -12);
+const newSynth = new Tone.PolySynth(Tone.Synth, {
+  oscillator: {
+    type: synthSettings.oscillator,
+    count: 3,
+    spread: 30,
+  },
+  envelope: synthSettings.envelope,
+});
 
     // Add effects
     const reverb = new Tone.Reverb(synthSettings.reverb);
