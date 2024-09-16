@@ -6,6 +6,10 @@ const VirtualKeyboard = ({ playNote }) => {
   const notes = ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C', 'D'];
   const { keyBindings } = useContext(KeyBindingsContext);
 
+  const VirtualKeyboard = ({ playNote }) => {
+    const { keyBindings } = useContext(KeyBindingsContext);
+    const [activeKeys, setActiveKeys] = useState([]);
+
   const noteToKey = {};
   const keyToNote = {};
   notes.forEach((note, index) => {
@@ -58,7 +62,6 @@ const VirtualKeyboard = ({ playNote }) => {
         );
       });
     };
-  };
 
   return (
     <div className="keyboard mt-4 flex">
