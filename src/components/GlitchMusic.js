@@ -5,7 +5,7 @@ import Controls from './Controls';
 import VirtualKeyboard from './VirtualKeyboard';
 import VocoderModule from './VocoderModule';
 import StepSequencer from './StepSequencer';
-import ModularSynth from './ModularSynth';
+import ModularSynthInterface from './ModularSynthInterface';
 import GlitchEffects from './GlitchEffects';
 import TapeEmulation from './TapeEmulation';
 import SampleLoader from './SampleLoader';
@@ -65,7 +65,7 @@ const GlitchMusic = () => {
             break;
         }
       }
-      
+
   const playNoteKeyboard = (note) => {
     if (synth) {
       synth.triggerAttackRelease(note, '8n');
