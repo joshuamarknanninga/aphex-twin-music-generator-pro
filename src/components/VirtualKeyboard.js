@@ -4,7 +4,7 @@ const VirtualKeyboard = ({ playNote }) => {
   const [activeKeys, setActiveKeys] = useState([]);
   const octaves = [4]; // Limit to one octave for home keys
   const notes = ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C', 'D'];
-  const keyBindings = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'];
+  const { keyBindings } = useContext(KeyBindingsContext);
 
   const noteToKey = {};
   const keyToNote = {};
@@ -43,21 +43,21 @@ const VirtualKeyboard = ({ playNote }) => {
   };
 
   const renderKeys = () => {
-    return notes.map((note, index) => {
-      const noteName = note + octaves[0];
-      const key = keyBindings[index];
-      const isActive = activeKeys.includes(key);
-      return (
-        <div
-          key={noteName}
-          className={`white-key key ${isActive ? 'active' : ''}`}
-          onMouseDown={() => playNote(noteName)}
-          title={`${noteName} (${key.toUpperCase()})`}
-        >
-          <span className="key-label">{key.toUpperCase()}</span>
-        </div>
-      );
-    });
+    return Object.entries(keyBindings.notes).map(([key, note]) => {
+        const isBlackKey = note.includes('#');
+        const isActive = activeKeys.includes(key);
+        return (
+          <div
+            key={note}
+            className={`${isBlackKey ? 'black-key' : 'white-key'} key ${isActive ? 'active' : ''}`}
+            onMouseDown={() => playNoteKeyboard(note)}
+            title={`${note} (${key.toUpperCase()})`}
+          >
+            <span className="key-label">{key.toUpperCase()}</span>
+          </div>
+        );
+      });
+    };
   };
 
   return (
