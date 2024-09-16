@@ -107,6 +107,62 @@ const GlitchMusic = () => {
   }, [synthSettings]);
 
   useEffect(() => {
+    // MIDI Access
+    if (navigator.requestMIDIAccess) {
+      navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure);
+    } else {
+      console.warn('Web MIDI API is not supported in this browser.');
+    }
+  }, []);
+
+  const onMIDISuccess = (midiAccess) => {
+    const inputs = midiAccess.inputs;
+    inputs.forEach((input) => {
+      input.onmidimessage = handleMIDIMessage;
+    });
+    midiAccess.onstatechange = (e) => {
+      console.log(e.port.name, e.port.manufacturer, e.port.state);
+    };
+  };
+
+  const onMIDIFailure = () => {
+    console.warn('Could not access your MIDI devices.');
+  };
+
+  const handleMIDIMessage = (message) => {
+    const [command, note, velocity] = message.data;
+    switch (command) {
+      case 144: // noteOn
+        if (velocity > 0) {
+          playMIDINote(note, velocity);
+        } else {
+          stopMIDINote(note);
+        }
+        break;
+      case 128: // noteOff
+        stopMIDINote(note);
+        break;
+      default:
+        break;
+    }
+  };
+
+  const playMIDINote = (noteNumber, velocity) => {
+    const note = Tone.Frequency(noteNumber, 'midi').toNote();
+    const vel = velocity / 127;
+    if (synth) {
+      synth.triggerAttack(note, Tone.now(), vel);
+    }
+  };
+
+  const stopMIDINote = (noteNumber) => {
+    const note = Tone.Frequency(noteNumber, 'midi').toNote();
+    if (synth) {
+      synth.triggerRelease(note);
+    }
+  };
+
+  useEffect(() => {
     // Update keyBindings with functions
     setKeyBindings((prevBindings) => ({
       ...prevBindings,
