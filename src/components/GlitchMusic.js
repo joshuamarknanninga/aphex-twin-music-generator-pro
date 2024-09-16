@@ -32,6 +32,41 @@ const GlitchMusic = () => {
   });
 
   useEffect(() => {
+    const keyToNote = {
+      'a': 'C4',
+      's': 'D4',
+      'd': 'E4',
+      'f': 'F4',
+      'g': 'G4',
+      'h': 'A4',
+      'j': 'B4',
+      'k': 'C5',
+      'l': 'D5'
+    };
+
+    const handleKeyDown = (event) => {
+      const key = event.key.toLowerCase();
+      if (key in keyToNote) {
+        playNoteKeyboard(keyToNote[key]);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [synth]);
+
+  const playNoteKeyboard = (note) => {
+    if (synth) {
+      synth.triggerAttackRelease(note, '8n');
+      socket.emit('noteOn', { note });
+      // Optionally, provide visual feedback on the virtual keyboard
+    }
+  };
+  
+  useEffect(() => {
     // Initialize tape effect
     const tape = new Tone.Warp({
       wet: 0.5,
