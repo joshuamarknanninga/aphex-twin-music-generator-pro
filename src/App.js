@@ -1,30 +1,31 @@
-import logo from './logo.svg';
-import './App.css';
-import React from 'react';
-import GlitchMusic from './components/GlitchMusic';
+// app.js
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <div className="min-h-screen text-white">
-      <GlitchMusic />
-    </div>
-        {/* <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p> */}
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
-}
+const express = require('express');
+const mongoose = require('mongoose');
+const authRoutes = require('./routes/auth');
+const projectRoutes = require('./routes/projects');
+const authMiddleware = require('./middleware/authMiddleware');
 
-export default App;
+const app = express();
+app.use(express.json());
+
+// Connect to MongoDB (replace with your MongoDB URI)
+mongoose.connect('mongodb://localhost:27017/yourdbname', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
+
+// Use routes
+app.use('/api/auth', authRoutes);
+app.use('/api', projectRoutes); // Protected routes under /api
+
+// Example protected route usage
+app.use('/api/protected-route', authMiddleware, (req, res) => {
+  res.json({ message: 'You have accessed a protected route!' });
+});
+
+// Start the server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
