@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useContext } from 'react';
+import React, { useEffect, useState, useRef, useContext, useCallback, useMemo } from 'react';
 import * as Tone from 'tone';
 import io from 'socket.io-client';
 import Controls from './Controls';
@@ -15,7 +15,6 @@ import { defaultKeyBindings, KeyBindingsContext } from '../utils/KeyBindings';
 const socket = io('http://localhost:5000');
 
 const GlitchMusic = () => {
-  const [synth, setSynth] = useState(null);
   const [player, setPlayer] = useState(null);
   const [tapeEffect, setTapeEffect] = useState(null);
   const [glitchEffect, setGlitchEffect] = useState(null);
@@ -39,21 +38,8 @@ const GlitchMusic = () => {
     delay: 0.5,
   });
 
-  useEffect(() => {
-    // Initialize the recorder
-    const newRecorder = new Tone.Recorder();
-    recorderRef.current = newRecorder;
-    // Connect the recorder to the master output
-    Tone.Destination.connect(newRecorder);
-    setRecorder(newRecorder);
-
-    return () => {
-      newRecorder.dispose();
-    };
-  }, []);
-
-  useEffect(() => {
-    // Initialize synthesizer
+  // Memoize the synthesizer to prevent unnecessary re-creation
+  const synth = useMemo(() => {
     const filter = new Tone.Filter(synthSettings.filterFrequency, 'lowpass', -12);
     const newSynth = new Tone.PolySynth(Tone.Synth, {
       oscillator: {
@@ -63,11 +49,36 @@ const GlitchMusic = () => {
       },
       envelope: synthSettings.envelope,
     });
+    newSynth.chain(filter, Tone.Destination);
+    return newSynth;
+  }, [synthSettings]);
 
-    // Add effects
-    const reverb = new Tone.Reverb(synthSettings.reverb);
-    const delay = new Tone.FeedbackDelay('8n', synthSettings.delay);
+  // Memoized playNote function to avoid unnecessary re-renders
+  const playNote = useCallback(
+    (note) => {
+      if (synth) {
+        synth.triggerAttackRelease(note, '8n');
+        socket.emit('noteOn', { note });
+      }
+    },
+    [synth]
+  );
 
+  useEffect(() => {
+    // Initialize the recorder
+    const newRecorder = new Tone.Recorder();
+    recorderRef.current = newRecorder;
+    // Connect the recorder to the master output
+    Tone.Destination.connect(newRecorder);
+    setRecorder(newRecorder);
+
+    // Clean up on unmount
+    return () => {
+      newRecorder.dispose();
+    };
+  }, []);
+
+  useEffect(() => {
     // Initialize glitch effects
     const stutter = new Tone.Tremolo(4, 0.7).start(); // Using a default stutter rate
     const grainPlayer = new Tone.GrainPlayer({
@@ -87,24 +98,12 @@ const GlitchMusic = () => {
       setOverlap: (ovl) => (grainPlayer.overlap = ovl),
     });
 
-    // Chain effects
-    newSynth.chain(filter, reverb, delay, stutter, grainPlayer, Tone.Destination);
-
-    setSynth(newSynth);
-
-    // Socket.IO event listeners
-    socket.on('noteOn', (data) => {
-      newSynth.triggerAttackRelease(data.note, '8n');
-    });
-
-    // Clean up
+    // Clean up on unmount
     return () => {
-      newSynth.dispose();
-      stutter.dispose();
-      grainPlayer.dispose();
-      socket.off('noteOn');
+      if (stutter) stutter.dispose();
+      if (grainPlayer) grainPlayer.dispose();
     };
-  }, [synthSettings]);
+  }, []);
 
   useEffect(() => {
     // MIDI Access
@@ -175,13 +174,6 @@ const GlitchMusic = () => {
     }));
   }, [keyBindings, synthSettings]);
 
-  const playNote = (note) => {
-    if (synth) {
-      synth.triggerAttackRelease(note, '8n');
-      socket.emit('noteOn', { note });
-    }
-  };
-
   const increaseFilterFrequency = () => {
     setSynthSettings((prev) => ({
       ...prev,
@@ -221,6 +213,19 @@ const GlitchMusic = () => {
       ...newSettings,
     }));
   };
+
+  useEffect(() => {
+    // Clean up Tone.js nodes on unmount
+    return () => {
+      if (synth) {
+        synth.dispose();
+      }
+      if (glitchEffect) {
+        glitchEffect.dispose();
+      }
+      // Dispose of other Tone.js nodes as needed
+    };
+  }, [synth, glitchEffect]);
 
   return (
     <KeyBindingsContext.Provider value={{ keyBindings, setKeyBindings }}>
