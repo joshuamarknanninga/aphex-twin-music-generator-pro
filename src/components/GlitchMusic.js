@@ -9,6 +9,7 @@ import ModularSynth from './ModularSynth';
 import GlitchEffects from './GlitchEffects';
 import TapeEmulation from './TapeEmulation';
 import SampleLoader from './SampleLoader';
+import Settings from './Settings';
 import { defaultKeyBindings, KeyBindingsContext } from '../utils/KeyBindings';
 
 const socket = io('http://localhost:5000');
@@ -19,6 +20,7 @@ const GlitchMusic = () => {
   const [tapeEffect, setTapeEffect] = useState(null);
   const [glitchEffect, setGlitchEffect] = useState(null);
   const [synthSettings, setSynthSettings] = useState({
+  const { keyBindings } = useContext(KeyBindingsContext);
     oscillator: 'fatsawtooth',
     filterFrequency: 350,
     filterResonance: 1,
@@ -47,18 +49,23 @@ const GlitchMusic = () => {
 
     const handleKeyDown = (event) => {
       const key = event.key.toLowerCase();
-      if (key in keyToNote) {
-        playNoteKeyboard(keyToNote[key]);
+      if (keyBindings.notes[key]) {
+        playNoteKeyboard(keyBindings.notes[key]);
+      } else if (keyBindings.controls[key]) {
+        // Map action names to functions
+        switch (keyBindings.controls[key]) {
+          case 'increaseFilterFrequency':
+            increaseFilterFrequency();
+            break;
+          case 'decreaseFilterFrequency':
+            decreaseFilterFrequency();
+            break;
+          // Add more cases as needed
+          default:
+            break;
+        }
       }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [synth]);
-
+      
   const playNoteKeyboard = (note) => {
     if (synth) {
       synth.triggerAttackRelease(note, '8n');
