@@ -126,13 +126,33 @@ const GlitchMusic = () => {
       wet: 0.5,
     });
 
-    // Initialize glitch effect
-    const glitch = new Tone.BitCrusher({
-      bits: 4,
+    // Initialize glitch effects
+    const stutter = new Tone.Tremolo(stutterRate, 0.7).start();
+    const grainPlayer = new Tone.GrainPlayer({
+      url: selectedSampleUrl, // From the sample loader
+      grainSize: grainSize,
+      overlap: overlap,
+      reverse: reverse,
+    }).toDestination();
+
+    // Update glitch effect state
+    setGlitchEffect({
+      stutter,
+      grainPlayer,
+      setStutterRate: (rate) => stutter.frequency.value = rate,
+      setReverse: (rev) => grainPlayer.reverse = rev,
+      setGrainSize: (size) => grainPlayer.grainSize = size,
+      setOverlap: (ovl) => grainPlayer.overlap = ovl,
     });
 
-    setTapeEffect(tape);
-    setGlitchEffect(glitch);
+    // Update effect chain
+    synth.chain(stutter, grainPlayer, Tone.Destination);
+
+    return () => {
+      stutter.dispose();
+      grainPlayer.dispose();
+    };
+  }, [synth]);
 
     // Initialize synthesizer
     const filter = new Tone.Filter(synthSettings.filterFrequency, 'lowpass', -12);
