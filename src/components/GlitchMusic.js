@@ -111,6 +111,8 @@ const GlitchMusic = () => {
       navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure);
     } else {
       console.warn('Web MIDI API is not supported in this browser.');
+      // Optionally inform the user and enable alternative inputs
+      enableAlternativeInputs();
     }
   }, []);
 
@@ -126,6 +128,14 @@ const GlitchMusic = () => {
 
   const onMIDIFailure = () => {
     console.warn('Could not access your MIDI devices.');
+    // Optionally inform the user and enable alternative inputs
+    enableAlternativeInputs();
+  };
+
+  const enableAlternativeInputs = () => {
+    // Logic to ensure users can still interact with the app
+    // e.g., show a message, enable virtual keyboard, etc.
+    console.log('Enabling alternative inputs.');
   };
 
   const handleMIDIMessage = (message) => {
