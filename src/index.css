@@ -24,3 +24,18 @@ input[type="checkbox"] {
   width: 16px;
   height: 16px;
 }
+
+table {
+  border-collapse: collapse;
+}
+
+th, td {
+  border: 1px solid #444;
+  text-align: center;
+  padding: 4px;
+}
+
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
