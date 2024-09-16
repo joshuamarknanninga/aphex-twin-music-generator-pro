@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import * as Tone from 'tone';
 import io from 'socket.io-client';
 import Controls from './Controls';
+import StepSequencer from './StepSequencer';
 
 const socket = io('http://localhost:5000');
 
@@ -20,6 +21,14 @@ const GlitchMusic = () => {
     reverb: 3,
     delay: 0.5,
   });
+
+   // Function to play a note (used by the sequencer)
+   const triggerNote = (note, time, duration) => {
+    if (synth) {
+      synth.triggerAttackRelease(note, duration, time);
+      socket.emit('noteOn', { note });
+    }
+  };
 
   useEffect(() => {
     // Initialize synthesizer with Korg-like sound
@@ -72,6 +81,11 @@ const GlitchMusic = () => {
     <div className="p-4">
       <h1 className="text-4xl mb-4">Aphex Twin Music Generator</h1>
       <Controls playNote={playNote} updateSynthSettings={updateSynthSettings} />
+      <StepSequencer triggerNote={triggerNote} />
+      <ModularSynth />
+      <GlitchEffects glitchEffect={glitchEffect} />
+      <TapeEmulation tapeEffect={tapeEffect} />
+      <SampleLoader loadSample={loadSample} />
     </div>
   );
 };
