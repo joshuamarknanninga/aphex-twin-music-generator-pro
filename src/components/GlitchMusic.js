@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useContext } from 'react';
 import * as Tone from 'tone';
 import io from 'socket.io-client';
 import Controls from './Controls';
@@ -19,8 +19,13 @@ const GlitchMusic = () => {
   const [player, setPlayer] = useState(null);
   const [tapeEffect, setTapeEffect] = useState(null);
   const [glitchEffect, setGlitchEffect] = useState(null);
+  const [recorder, setRecorder] = useState(null);
+  const [recording, setRecording] = useState(false);
+  const [audioUrl, setAudioUrl] = useState(null);
+  const recorderRef = useRef(null);
+  const { keyBindings, setKeyBindings } = useContext(KeyBindingsContext);
+
   const [synthSettings, setSynthSettings] = useState({
-  const { keyBindings } = useContext(KeyBindingsContext);
     oscillator: 'fatsawtooth',
     filterFrequency: 350,
     filterResonance: 1,
@@ -35,77 +40,92 @@ const GlitchMusic = () => {
   });
 
   useEffect(() => {
-    const keyToNote = {
-      'a': 'C4',
-      's': 'D4',
-      'd': 'E4',
-      'f': 'F4',
-      'g': 'G4',
-      'h': 'A4',
-      'j': 'B4',
-      'k': 'C5',
-      'l': 'D5'
-    };
-
-    const handleKeyDown = (event) => {
-      const key = event.key.toLowerCase();
-      if (keyBindings.notes[key]) {
-        playNoteKeyboard(keyBindings.notes[key]);
-      } else if (keyBindings.controls[key]) {
-        // Map action names to functions
-        switch (keyBindings.controls[key]) {
-          case 'increaseFilterFrequency':
-            increaseFilterFrequency();
-            break;
-          case 'decreaseFilterFrequency':
-            decreaseFilterFrequency();
-            break;
-          // Add more cases as needed
-          default:
-            break;
-        }
-      }
-
-  const playNoteKeyboard = (note) => {
-    if (synth) {
-      synth.triggerAttackRelease(note, '8n');
-      socket.emit('noteOn', { note });
-      // Optionally, provide visual feedback on the virtual keyboard
-    }
-  };
-
-  const [keyBindings, setKeyBindings] = useState(defaultKeyBindings);
-
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      const key = event.key.toLowerCase();
-
-      if (keyBindings.notes[key]) {
-        playNoteKeyboard(keyBindings.notes[key]);
-      } else if (keyBindings.controls[key]) {
-        keyBindings.controls[key](); // Execute the control function
-      } else if (keyBindings.sequencer[key]) {
-        keyBindings.sequencer[key]();
-      }
-      // Add additional key handling as needed
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
+    // Initialize the recorder
+    const newRecorder = new Tone.Recorder();
+    recorderRef.current = newRecorder;
+    // Connect the recorder to the master output
+    Tone.Destination.connect(newRecorder);
+    setRecorder(newRecorder);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      newRecorder.dispose();
     };
-  }, [synth, keyBindings]);
+  }, []);
 
-  const playNoteKeyboard = (note) => {
+  useEffect(() => {
+    // Initialize synthesizer
+    const filter = new Tone.Filter(synthSettings.filterFrequency, 'lowpass', -12);
+    const newSynth = new Tone.PolySynth(Tone.Synth, {
+      oscillator: {
+        type: synthSettings.oscillator,
+        count: 3,
+        spread: 30,
+      },
+      envelope: synthSettings.envelope,
+    });
+
+    // Add effects
+    const reverb = new Tone.Reverb(synthSettings.reverb);
+    const delay = new Tone.FeedbackDelay('8n', synthSettings.delay);
+
+    // Initialize glitch effects
+    const stutter = new Tone.Tremolo(4, 0.7).start(); // Using a default stutter rate
+    const grainPlayer = new Tone.GrainPlayer({
+      url: '', // Placeholder for sample loader URL
+      grainSize: 0.2,
+      overlap: 0.1,
+      reverse: false,
+    }).toDestination();
+
+    // Update glitch effect state
+    setGlitchEffect({
+      stutter,
+      grainPlayer,
+      setStutterRate: (rate) => (stutter.frequency.value = rate),
+      setReverse: (rev) => (grainPlayer.reverse = rev),
+      setGrainSize: (size) => (grainPlayer.grainSize = size),
+      setOverlap: (ovl) => (grainPlayer.overlap = ovl),
+    });
+
+    // Chain effects
+    newSynth.chain(filter, reverb, delay, stutter, grainPlayer, Tone.Destination);
+
+    setSynth(newSynth);
+
+    // Socket.IO event listeners
+    socket.on('noteOn', (data) => {
+      newSynth.triggerAttackRelease(data.note, '8n');
+    });
+
+    // Clean up
+    return () => {
+      newSynth.dispose();
+      stutter.dispose();
+      grainPlayer.dispose();
+      socket.off('noteOn');
+    };
+  }, [synthSettings]);
+
+  useEffect(() => {
+    // Update keyBindings with functions
+    setKeyBindings((prevBindings) => ({
+      ...prevBindings,
+      controls: {
+        ...prevBindings.controls,
+        arrowup: increaseFilterFrequency,
+        arrowdown: decreaseFilterFrequency,
+        // Add more control bindings
+      },
+    }));
+  }, [keyBindings, synthSettings]);
+
+  const playNote = (note) => {
     if (synth) {
       synth.triggerAttackRelease(note, '8n');
       socket.emit('noteOn', { note });
-      // Optionally, provide visual feedback on the virtual keyboard
     }
   };
 
-  // Example control functions
   const increaseFilterFrequency = () => {
     setSynthSettings((prev) => ({
       ...prev,
@@ -120,109 +140,23 @@ const GlitchMusic = () => {
     }));
   };
 
-  useEffect(() => {
-    // Initialize tape effect
-    const tape = new Tone.Warp({
-      wet: 0.5,
-    });
-
-    // Initialize glitch effects
-    const stutter = new Tone.Tremolo(stutterRate, 0.7).start();
-    const grainPlayer = new Tone.GrainPlayer({
-      url: selectedSampleUrl, // From the sample loader
-      grainSize: grainSize,
-      overlap: overlap,
-      reverse: reverse,
-    }).toDestination();
-
-    // Update glitch effect state
-    setGlitchEffect({
-      stutter,
-      grainPlayer,
-      setStutterRate: (rate) => stutter.frequency.value = rate,
-      setReverse: (rev) => grainPlayer.reverse = rev,
-      setGrainSize: (size) => grainPlayer.grainSize = size,
-      setOverlap: (ovl) => grainPlayer.overlap = ovl,
-    });
-
-    // Update effect chain
-    synth.chain(stutter, grainPlayer, Tone.Destination);
-
-    return () => {
-      stutter.dispose();
-      grainPlayer.dispose();
-    };
-  }, [synth]);
-
-    // Initialize synthesizer
-    const filter = new Tone.Filter(synthSettings.filterFrequency, 'lowpass', -12);
-    const newSynth = new Tone.PolySynth(Tone.Synth, {
-      oscillator: {
-        type: synthSettings.oscillator,
-        count: 3,
-        spread: 30,
-      },
-      envelope: synthSettings.envelope,
-    });
-
-    // Function to play a note (used by the sequencer)
-  const triggerNote = (note, time, duration) => {
-    if (synth) {
-      synth.triggerAttackRelease(note, duration, time);
-      socket.emit('noteOn', { note });
-    }
+  const startRecording = async () => {
+    await Tone.start();
+    recorder.start();
+    setRecording(true);
   };
 
-  return (
-    <div className="p-4">
-      <h1 className="text-4xl mb-4">Aphex Twin Music Generator</h1>
-      <Controls playNote={playNote} updateSynthSettings={updateSynthSettings} />
-      <StepSequencer triggerNote={triggerNote} />
-      <ModularSynth />
-      <GlitchEffects glitchEffect={glitchEffect} />
-      <TapeEmulation tapeEffect={tapeEffect} />
-      <SampleLoader loadSample={loadSample} />
-    </div>
+  const stopRecording = async () => {
+    setRecording(false);
+    const recordingData = await recorder.stop();
+    const url = URL.createObjectURL(recordingData);
+    setAudioUrl(url);
+  };
 
-);
-
-// Initialize synthesizer
-const filter = new Tone.Filter(synthSettings.filterFrequency, 'lowpass', -12);
-const newSynth = new Tone.PolySynth(Tone.Synth, {
-  oscillator: {
-    type: synthSettings.oscillator,
-    count: 3,
-    spread: 30,
-  },
-  envelope: synthSettings.envelope,
-});
-
-    // Add effects
-    const reverb = new Tone.Reverb(synthSettings.reverb);
-    const delay = new Tone.FeedbackDelay('8n', synthSettings.delay);
-
-    // Chain effects
-    newSynth.chain(filter, reverb, delay, glitch, tape, Tone.Destination);
-
-    setSynth(newSynth);
-
-    // Socket.IO event listeners
-    socket.on('noteOn', (data) => {
-      newSynth.triggerAttackRelease(data.note, '8n');
-    });
-
-    // Clean up
-    return () => {
-      newSynth.dispose();
-      socket.off('noteOn');
-    };
-  }, [synthSettings]);
-
-  const playNote = (note) => {
-    if (synth) {
-      synth.triggerAttackRelease(note, '8n');
-      socket.emit('noteOn', { note });
-    }
+  const loadSample = (buffer) => {
+    const newPlayer = new Tone.Player(buffer).toDestination();
+    newPlayer.start();
+    setPlayer(newPlayer);
   };
 
   const updateSynthSettings = (newSettings) => {
@@ -232,38 +166,52 @@ const newSynth = new Tone.PolySynth(Tone.Synth, {
     }));
   };
 
-  const loadSample = (buffer) => {
-    const newPlayer = new Tone.Player(buffer).toDestination();
-    newPlayer.start();
-    setPlayer(newPlayer);
-  };
-
-  // Update keyBindings with functions
-  useEffect(() => {
-    setKeyBindings((prevBindings) => ({
-      ...prevBindings,
-      controls: {
-        ...prevBindings.controls,
-        'arrowup': increaseFilterFrequency,
-        'arrowdown': decreaseFilterFrequency,
-        // Add more control bindings
-      },
-    }));
-  }, []);
-
   return (
     <KeyBindingsContext.Provider value={{ keyBindings, setKeyBindings }}>
       <div className="p-4">
         <h1 className="text-4xl mb-4">Aphex Twin Music Generator</h1>
         <Controls playNote={playNote} updateSynthSettings={updateSynthSettings} />
         <VirtualKeyboard playNote={playNote} />
-        <VocoderModule handleAudioInput={handleAudioInput} vocoder={vocoder} />
-        <StepSequencer triggerNote={triggerNote} />
-        <ModularSynth />
+        <VocoderModule handleAudioInput={() => {}} vocoder={{}} />
+        <StepSequencer triggerNote={(note, time, duration) => playNote(note)} />
+        <ModularSynthInterface />
         <GlitchEffects glitchEffect={glitchEffect} />
         <TapeEmulation tapeEffect={tapeEffect} />
         <SampleLoader loadSample={loadSample} />
+
+        <div className="bg-gray-800 p-4 rounded mt-4">
+          <h2 className="text-2xl mb-2">Recording</h2>
+          {recording ? (
+            <button
+              onClick={stopRecording}
+              className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+            >
+              Stop Recording
+            </button>
+          ) : (
+            <button
+              onClick={startRecording}
+              className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+            >
+              Start Recording
+            </button>
+          )}
+          {audioUrl && (
+            <div className="mt-4">
+              <audio controls src={audioUrl}></audio>
+              <a
+                href={audioUrl}
+                download="aphex-twin-creation.wav"
+                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded ml-4"
+              >
+                Download Recording
+              </a>
+            </div>
+          )}
+        </div>
       </div>
     </KeyBindingsContext.Provider>
+  );
+};
 
 export default GlitchMusic;
