@@ -1,0 +1,13 @@
+/* src/styles/custom.css */
+
+/* Override Semantic UI variables or add custom styles here */
+
+body {
+    background-color: #f9fafb;
+  }
+  
+  audio {
+    width: 100%;
+    margin-top: 1em;
+  }
+  
