@@ -1,13 +1,12 @@
 // src/components/Synthesizer/ModularSynth.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useContext } from 'react';
 import * as Tone from 'tone';
-import { Button, Slider } from 'semantic-ui-react';
+import Controls from './Controls';
+import { SynthContext } from '../../contexts/SynthContext';
+import { Button } from 'semantic-ui-react';
 
 const ModularSynth = () => {
-  const [oscillatorType, setOscillatorType] = useState('sine');
-  const [frequency, setFrequency] = useState(440);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [synth, setSynth] = useState(null);
+  const { synth, setSynth, isPlaying, setIsPlaying } = useContext(SynthContext);
 
   useEffect(() => {
     const newSynth = new Tone.Synth().toDestination();
@@ -16,11 +15,12 @@ const ModularSynth = () => {
     return () => {
       newSynth.dispose();
     };
-  }, []);
+  }, [setSynth]);
 
-  const handlePlay = () => {
+  const handlePlay = async () => {
+    await Tone.start(); // Necessary to start audio context on user interaction
     if (synth) {
-      synth.triggerAttack(frequency);
+      synth.triggerAttack('C4');
       setIsPlaying(true);
     }
   };
@@ -32,49 +32,11 @@ const ModularSynth = () => {
     }
   };
 
-  const handleTypeChange = (type) => {
-    setOscillatorType(type);
-    if (synth) {
-      synth.oscillator.type = type;
-    }
-  };
-
-  const handleFrequencyChange = (e, { value }) => {
-    setFrequency(value);
-    if (synth) {
-      synth.frequency.value = value;
-    }
-  };
-
   return (
     <div className="p-4 bg-gray-800 text-white">
       <h2 className="text-xl mb-4">Modular Synthesizer</h2>
-      <div className="mb-4">
-        <label>Oscillator Type:</label>
-        <div className="flex space-x-2 mt-2">
-          {['sine', 'square', 'sawtooth', 'triangle'].map((type) => (
-            <Button
-              key={type}
-              active={oscillatorType === type}
-              onClick={() => handleTypeChange(type)}
-              size="small"
-              color="blue"
-            >
-              {type}
-            </Button>
-          ))}
-        </div>
-      </div>
-      <div className="mb-4">
-        <label>Frequency: {frequency} Hz</label>
-        <Slider
-          min={100}
-          max={1000}
-          value={frequency}
-          onChange={handleFrequencyChange}
-        />
-      </div>
-      <div>
+      <Controls />
+      <div className="mt-4">
         {!isPlaying ? (
           <Button onClick={handlePlay} color="green">
             Play
