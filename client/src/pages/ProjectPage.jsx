@@ -1,5 +1,5 @@
 // src/pages/ProjectPage.jsx
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { ProjectContext } from '../contexts/ProjectContext';
 import { fetchProjectById } from '../services/projectService';
@@ -9,7 +9,6 @@ import StepSequencer from '../components/Sequencer/StepSequencer';
 import Player from '../components/Player/Player';
 import SampleLoader from '../components/SampleLoader/SampleLoader';
 import Settings from '../components/Settings/Settings';
-import { Container, Header, Loader, Message } from 'semantic-ui-react';
 
 const ProjectPage = () => {
   const { id } = useParams();

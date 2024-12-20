@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as Tone from 'tone';
 import WaveSurfer from 'wavesurfer.js';
+import { uploadSample } from '../../services/projectService';
 
 const SampleLoader = () => {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -9,6 +10,7 @@ const SampleLoader = () => {
   const [detune, setDetune] = useState(0);
   const waveformRef = useRef(null);
   const wavesurfer = useRef(null);
+  
 
   useEffect(() => {
     if (waveformRef.current) {

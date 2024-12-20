@@ -18,3 +18,9 @@ export const logout = async () => {
   const response = await api.post('/auth/logout');
   return response.data;
 };
+
+// Update user settings
+export const updateUserSettings = async (settings) => {
+  const response = await api.put('/auth/settings', settings);
+  return response.data;
+};
