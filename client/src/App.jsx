@@ -9,25 +9,28 @@ import Dashboard from './pages/Dashboard';
 import ProjectPage from './pages/ProjectPage';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProjectProvider } from './contexts/ProjectContext';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   return (
     <AuthProvider>
       <ProjectProvider>
         <Router>
-          <div className="flex flex-col min-h-screen">
-            <Navbar />
-            <main className="flex-grow">
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/project/:id" element={<ProjectPage />} />
-              </Routes>
-            </main>
-            <Footer />
-          </div>
+          <ErrorBoundary>
+            <div className="flex flex-col min-h-screen">
+              <Navbar />
+              <main className="flex-grow">
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/signup" element={<Signup />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/project/:id" element={<ProjectPage />} />
+                </Routes>
+              </main>
+              <Footer />
+            </div>
+          </ErrorBoundary>
         </Router>
       </ProjectProvider>
     </AuthProvider>

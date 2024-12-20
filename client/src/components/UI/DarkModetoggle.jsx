@@ -1,24 +1,23 @@
 // src/components/UI/DarkModeToggle.jsx
 import React, { useEffect, useState } from 'react';
+import { Button } from 'semantic-ui-react';
 
 const DarkModeToggle = () => {
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
+    const root = window.document.documentElement;
     if (isDark) {
-      document.documentElement.classList.add('dark');
+      root.classList.add('dark');
     } else {
-      document.documentElement.classList.remove('dark');
+      root.classList.remove('dark');
     }
   }, [isDark]);
 
   return (
-    <button
-      onClick={() => setIsDark(!isDark)}
-      className="p-2 rounded bg-gray-200 dark:bg-gray-700"
-    >
-      {isDark ? 'Light Mode' : 'Dark Mode'}
-    </button>
+    <Button icon onClick={() => setIsDark(!isDark)} basic>
+      {isDark ? '🌞' : '🌙'}
+    </Button>
   );
 };
 
